@@ -46,6 +46,8 @@ namespace Localization
 
         public static List<LocalizationElement> LoadManagerData(string filepath)
         {
+            if (string.IsNullOrEmpty(filepath)) return null;
+
             var data = ReadFile(filepath);
             if (data?.Length <= 1) return null;
 
@@ -66,19 +68,18 @@ namespace Localization
 
         public static List<LocalizationElement> LoadLangData(string filepath)
         {
+            if (string.IsNullOrEmpty(filepath)) return null;
             var data = ReadFile(filepath);
             if (data?.Length < 1) return null;
 
             var list = new List<LocalizationElement>();
             var managerList = LocalizationWindow.ElementsList;
             var langList = CreateLocArray(data);
-            for (var i = 0; i < managerList.Count; i++)
+            foreach (var el in managerList)
             {
-                var langText =(langList.Count > i && managerList[i].Key.Equals(langList[i].Key))
-                    ? langList[i].Text : "";
-                list.Add(new LocalizationElement(managerList[i].Key,
-                    langText,
-                    managerList[i].Group));
+                int index = langList.FindIndex((x) => x.Key.Equals(el.Key));
+                var langText = index!=-1 ? langList[index].Text : "";
+                list.Add(new LocalizationElement(el.Key, langText, el.Group));
             }
 
             return list;

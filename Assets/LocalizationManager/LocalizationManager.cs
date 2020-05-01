@@ -60,16 +60,16 @@ namespace Localization
             public string text;
             public int group;
 
+            public bool refindOnStart = true;
             public bool multipleObjectAllowed = true;
-            public bool findChildByKeyName = true;
+            public bool findChildByKeyName = false;
             public string childName;
-            public bool generalChildsRootObject = true;
+            public bool сhildsRootObject = false;
             public Transform customChildsRootObject;
 
             public bool textComponentAllowed = true;
             public bool textMeshComponentAllowed = true;
             public bool textMeshProComponentAllowed = true;
-
 
             public GameObject[] foundObjects;
             public Text textObject;
@@ -85,7 +85,7 @@ namespace Localization
                 Debug.LogWarning("Duplicate instance of '" + typeof(LocalizationManager) + "' has been enabled.");
             }
 
-            LoadAssignationTypes();
+            FindAllGameObjects();
             if (loadLanguageOnStart)
                 LoadLanguage(selectedLanguage);
         }
@@ -99,6 +99,7 @@ namespace Localization
                     $" {languageFiles.Count} Your index: {languageIndex}");
                 return;
             }
+
             if (languageFiles[languageIndex] == null)
             {
                 Debug.LogError("Localization: The language that you've selected with your index is empty!");
@@ -114,6 +115,7 @@ namespace Localization
                 {
                     foreach (var foundObject in sel.foundObjects)
                     {
+                        if(foundObject == null) continue;
                         if (foundObject.GetComponent<TextMeshProUGUI>() && sel.textMeshProComponentAllowed)
                             foundObject.GetComponent<TextMeshProUGUI>().text = sel.text;
                         else if (foundObject.GetComponent<Text>() && sel.textComponentAllowed)
@@ -134,6 +136,84 @@ namespace Localization
             }
         }
 
+        public GameObject[] FindGameObject(ObjectSelector sel)
+        {
+            string childName = sel.key;
+            if (sel.findChildByKeyName)
+                childName = sel.childName;
+            List<GameObject> foundChild = new List<GameObject>();
+            if (!sel.сhildsRootObject)
+                foreach (Transform t in rootObject.GetComponentsInChildren<Transform>())
+                {
+                    if (t.name == childName)
+                    {
+                        if (sel.textMeshProComponentAllowed && t.GetComponent<TextMeshProUGUI>())
+                        {
+                            foundChild.Add(t.gameObject);
+                            if (!sel.multipleObjectAllowed) break;
+                        }
+                        else if (sel.textComponentAllowed && t.GetComponent<Text>())
+                        {
+                            foundChild.Add(t.gameObject);
+                            if (!sel.multipleObjectAllowed) break;
+                        }
+                        else if (sel.textMeshComponentAllowed && t.GetComponent<TextMesh>())
+                        {
+                            foundChild.Add(t.gameObject);
+                            if (!sel.multipleObjectAllowed) break;
+                        }
+                    }
+                }
+            else if (sel.customChildsRootObject)
+                foreach (Transform t in sel.customChildsRootObject.GetComponentsInChildren<Transform>())
+                {
+                    if (t.name == childName)
+                    {
+                        if (sel.textMeshProComponentAllowed && t.GetComponent<TextMeshProUGUI>())
+                        {
+                            foundChild.Add(t.gameObject);
+                            if (!sel.multipleObjectAllowed) break;
+                        }
+                        else if (sel.textComponentAllowed && t.GetComponent<Text>())
+                        {
+                            foundChild.Add(t.gameObject);
+                            if (!sel.multipleObjectAllowed) break;
+                        }
+                        else if (sel.textMeshComponentAllowed && t.GetComponent<TextMesh>())
+                        {
+                            foundChild.Add(t.gameObject);
+                            if (!sel.multipleObjectAllowed) break;
+                        }
+                    }
+                }
+            else
+                Debug.Log("Localization: The key '" + sel.key +
+                          "' has empty variable [customChildsRootObject].");
+
+            if (foundChild.Count > 0)
+                return foundChild.ToArray();
+
+            Debug.Log(
+                "Localization: The key '" + sel.key + "' couldn't find its object in the root object.");
+            return null;
+        }
+
+        /// <summary>
+        /// Load and Refresh all text objects by the selected options
+        /// </summary>
+        public void FindAllGameObjects()
+        {
+            foreach (ObjectSelector sel in objectSelectorList)
+            {
+                if (!sel.refindOnStart) continue;
+                switch (sel.assignationType)
+                {
+                    case ObjectSelector.AssignationType.GameObjectChild:
+                        sel.foundObjects = FindGameObject(sel);
+                        break;
+                }
+            }
+        }
         public string GetText(string key) =>
             objectSelectorList.Find((x) => x.key.Equals(key)).text;
         
@@ -187,81 +267,6 @@ namespace Localization
 
             return 0;
         }
-
-
-        /// <summary>
-        /// Load and Refresh all text objects by the selected options
-        /// </summary>
-        private void LoadAssignationTypes()
-        {
-            foreach (ObjectSelector sel in objectSelectorList)
-            {
-                switch (sel.assignationType)
-                {
-                    case ObjectSelector.AssignationType.GameObjectChild:
-                        string childName = sel.childName;
-                        if (sel.findChildByKeyName)
-                            childName = sel.key;
-                        List<GameObject> foundChild = new List<GameObject>();
-                        if (sel.generalChildsRootObject)
-                            foreach (Transform t in rootObject.GetComponentsInChildren<Transform>())
-                            {
-                                if (t.name == childName)
-                                {
-                                    if (sel.textMeshProComponentAllowed && t.GetComponent<TextMeshProUGUI>())
-                                    {
-                                        foundChild.Add(t.gameObject);
-                                        if (!sel.multipleObjectAllowed) break;
-                                    }
-                                    else if (sel.textComponentAllowed && t.GetComponent<Text>())
-                                    {
-                                        foundChild.Add(t.gameObject);
-                                        if (!sel.multipleObjectAllowed) break;
-                                    }
-                                    else if (sel.textMeshComponentAllowed && t.GetComponent<TextMesh>())
-                                    {
-                                        foundChild.Add(t.gameObject);
-                                        if (!sel.multipleObjectAllowed) break;
-                                    }
-                                }
-                            }
-                        else if (sel.customChildsRootObject)
-                            foreach (Transform t in sel.customChildsRootObject.GetComponentsInChildren<Transform>())
-                            {
-                                if (t.name == childName)
-                                {
-                                    if (sel.textMeshProComponentAllowed && t.GetComponent<TextMeshProUGUI>())
-                                    {
-                                        foundChild.Add(t.gameObject);
-                                        if (!sel.multipleObjectAllowed) break;
-                                    }
-                                    else if (sel.textComponentAllowed && t.GetComponent<Text>())
-                                    {
-                                        foundChild.Add(t.gameObject);
-                                        if (!sel.multipleObjectAllowed) break;
-                                    }
-                                    else if (sel.textMeshComponentAllowed && t.GetComponent<TextMesh>())
-                                    {
-                                        foundChild.Add(t.gameObject);
-                                        if (!sel.multipleObjectAllowed) break;
-                                    }
-                                }
-                            }
-                        else
-                            Debug.Log("Localization: The key '" + sel.key +
-                                      "' has empty variable [customChildsRootObject].");
-
-                        if (foundChild.Count > 0)
-                            sel.foundObjects = foundChild.ToArray();
-                        else
-                            Debug.Log(
-                                "Localization: The key '" + sel.key + "' couldn't find its object in the root object.");
-                        break;
-                }
-            }
-        }
         #endregion
-
-        
     }
 }

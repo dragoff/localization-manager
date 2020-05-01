@@ -1,7 +1,5 @@
-﻿#if UNITY_EDITOR
-using System;
+﻿using System;
 using System.Collections.Generic;
-using System.IO;
 using UnityEngine;
 using UnityEditor;
 
@@ -75,9 +73,12 @@ namespace Localization
                 return;
             serializedObject.Update();
             DrawHeader();
+
+            LocLayout.Space();
+
             //LANGUAGE SETTINGS
 
-            if(LocLayout.Bar("Show language settings", ref isShowLang, _selectedLanguage.intValue == -1))
+            if (LocLayout.Bar("Show language settings", ref isShowLang, _selectedLanguage.intValue == -1))
             {
                 GUILayout.BeginVertical(blockStyle);
 
@@ -85,12 +86,13 @@ namespace Localization
                 LocLayout.Space(5);
                 serializedObject.ApplyModifiedProperties();
 
-                if (DrawItemSelector(_selectedLanguage, _languageFiles, "Selected Language") && _selectedLanguage.intValue!=-1)
+                if (DrawItemSelector(_selectedLanguage, _languageFiles, "Selected Language") &&
+                    _selectedLanguage.intValue != -1)
                     l.LoadLanguage(_selectedLanguage.intValue);
 
                 GUILayout.EndVertical();
             }
-            
+
             LocLayout.Space();
             serializedObject.ApplyModifiedProperties();
 
@@ -104,8 +106,16 @@ namespace Localization
                     "Starting find root for keys containing 'GameObjectChild' assignation type", isColor: true,
                     isNullColor: true);
                 LocLayout.Space(5);
+                GUILayout.BeginHorizontal();
+                {
 
-                LocLayout.ToggleLabel(_loadLanguageOnStart, "Reload On Start", "Update all GameObjects on scene load");
+                    LocLayout.ToggleLabel(_loadLanguageOnStart, "Load language On Start",
+                        "Update all GameObjects on scene load");
+                    LocLayout.Space(3);
+                    if(_selectedLanguage.intValue!=-1 && LocLayout.Button("Load selected language")) 
+                        l.LoadLanguage(_selectedLanguage.intValue);
+                }
+                GUILayout.EndHorizontal();
                 LocLayout.Space();
                 serializedObject.ApplyModifiedProperties();
 
@@ -127,7 +137,6 @@ namespace Localization
                         DrawKeyList(_localizationSelector);
                     else
                         LocLayout.Label("- - Key list is empty - -");
-                    
                 }
                 GUILayout.EndVertical();
             }
@@ -135,6 +144,8 @@ namespace Localization
             GUILayout.EndVertical();
             serializedObject.ApplyModifiedProperties();
         }
+
+        #region LAYOUT
 
         private void DrawAddKeyMenu()
         {
@@ -235,16 +246,18 @@ namespace Localization
             {
                 GUILayout.BeginVertical(blockStyle);
                 SerializedProperty item = _localizationSelector.GetArrayElementAtIndex(i);
+                var foundObjectsProperty = item.FindPropertyRelative("foundObjects");
+
                 GUILayout.BeginHorizontal();
                 {
                     LocLayout.Property(item, l.objectSelectorList[i].key);
+
                     if (Application.isPlaying)
                     {
-                        var objects = item.FindPropertyRelative("foundObjects");
                         GUILayout.BeginVertical();
                         {
-                            for (int j = 0; j < objects.arraySize; j++)
-                                LocLayout.Property(objects.GetArrayElementAtIndex(j));
+                            for (int j = 0; j < foundObjectsProperty.arraySize; j++)
+                                LocLayout.Property(foundObjectsProperty.GetArrayElementAtIndex(j));
                         }
                         GUILayout.EndVertical();
                     }
@@ -280,17 +293,39 @@ namespace Localization
                 switch (sec.assignationType)
                 {
                     case LocalizationManager.ObjectSelector.AssignationType.GameObjectChild:
+
+                        if (!LocLayout.ToggleLabel(item.FindPropertyRelative("refindOnStart"), "Refind On Start"))
+                        {
+                            LocLayout.Space(5);
+
+                            GUILayout.BeginHorizontal();
+                            {
+
+                                if(LocLayout.Button("Search"))
+                                {
+                                    sec.foundObjects = l.FindGameObject(sec);
+                                }
+                                LocLayout.Space(3);
+
+                                LocLayout.List(foundObjectsProperty, "Objects");
+
+                            }
+                            GUILayout.EndHorizontal();
+
+                        }
+                        LocLayout.Space(5);
+
                         LocLayout.ToggleLabel(item.FindPropertyRelative("findChildByKeyName"),
                             "Find Child By Key Name",
                             "If enabled, the system will find the child of the selected component type [below] by the key name");
-                        if (!sec.findChildByKeyName)
+                        if (sec.findChildByKeyName)
                             LocLayout.Property(item.FindPropertyRelative("childName"), "Child Name");
 
                         LocLayout.Space(3);
 
-                        LocLayout.ToggleLabel(item.FindPropertyRelative("generalChildsRootObject"),
-                            "Use General Childs Root Object");
-                        if (!sec.generalChildsRootObject)
+                        LocLayout.ToggleLabel(item.FindPropertyRelative("сhildsRootObject"),
+                            "Use Custom Childs Root Object");
+                        if (sec.сhildsRootObject)
                             LocLayout.Property(item.FindPropertyRelative("customChildsRootObject"),
                                 "Custom Childs Root Object", isColor: true, isNullColor: true);
 
@@ -298,8 +333,7 @@ namespace Localization
 
                         LocLayout.ToggleLabel(item.FindPropertyRelative("multipleObjectAllowed"),
                             "Allow Multiple Objects");
-
-
+                        
                         LocLayout.Space(5);
                         LocLayout.Label("Allow Component Object");
                         GUILayout.BeginHorizontal();
@@ -338,8 +372,6 @@ namespace Localization
 
             serializedObject.ApplyModifiedProperties();
         }
-
-        #region LAYOUT
 
         private static bool DrawItemSelector(SerializedProperty p, SerializedProperty serializedList, string label)
         {
@@ -392,4 +424,3 @@ namespace Localization
         #endregion
     }
 }
-#endif

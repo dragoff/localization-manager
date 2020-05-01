@@ -1,37 +1,35 @@
-﻿#if UNITY_EDITOR
-using System;
+﻿using System;
 using UnityEditor;
 using UnityEngine;
 using System.IO;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Localization
 {
     public class LocalizationWindow : EditorWindow
     {
-        
         public static List<LocalizationElement> ElementsList = new List<LocalizationElement>();
         private List<LocalizationElement> tempElementsList;
         private static string path;
-        
+
         private static Vector2 scrollRect;
-        private SearchField searchField;
-        
-        //TODO
-        private static bool managerSelected = true;
+        private LocLayout.SearchField searchField;
+
 
         private static int groupSelected = 0;
+        private static bool selectAllKeys;
         private static string grpoup_Name;
         private static bool initialized = false;
         private static bool readySteady = false;
+
         public static void Init()
         {
             //TODO
             if (initialized)
                 return;
-
-            LocalizationWindow win = ScriptableObject.CreateInstance<LocalizationWindow>();
-
+            
+            CreateInstance<LocalizationWindow>();
             initialized = true;
 
             ElementsList.Clear();
@@ -51,6 +49,7 @@ namespace Localization
 
             GetManagerPath();
         }
+
         private static void GetManagerPath()
         {
             path = PlayerPrefs.GetString(LocalizationController.PrefsKey);
@@ -61,43 +60,32 @@ namespace Localization
             }
 
             readySteady = true;
-            managerSelected = true;
             Load();
         }
-        
+
         private static void Save() => LocalizationController.SaveData(path, ElementsList);
-        private static void Load() =>ElementsList = LocalizationController.LoadManagerData(path);
+        private static void Load() => ElementsList = LocalizationController.LoadManagerData(path);
 
         private void OpenLang()
         {
             Save();
-            LocalizationLangWindow win = ScriptableObject.CreateInstance<LocalizationLangWindow>();
-            win.minSize = new Vector2(601, 200);
-            win.maxSize = new Vector2(601, 1000);
-            win.name = "Localization Language";
-            win.GetLanguagePath();
-            win.Show();
-            
+            CreateInstance<LocalizationLangWindow>().GetLanguagePath();
         }
+
         private static void CreateLang()
         {
             Save();
-            LocalizationLangWindow win = ScriptableObject.CreateInstance<LocalizationLangWindow>();
-            win.minSize = new Vector2(601, 200);
-            win.maxSize = new Vector2(601, 1000);
-            win.name = "Localization Language";
-            win.CreateLanguagePath();
-            win.Show();
+            CreateInstance<LocalizationLangWindow>().CreateLanguagePath();
         }
+
         private void OnEnable()
         {
-            if (searchField == null) searchField = new SearchField();
+            if (searchField == null) searchField = new LocLayout.SearchField();
         }
 
 
         private void OnGUI()
         {
-            
             EditorGUI.indentLevel++;
             LocLayout.Space();
 
@@ -117,7 +105,7 @@ namespace Localization
                 if (GUILayout.Button("Select Localization Manager file", GUILayout.Width(250)))
                 {
                     string f = EditorUtility.OpenFilePanel("Select Localization Manager file", Application.dataPath,
-                        "txt");
+                        "loc");
                     if (string.IsNullOrEmpty(f))
                         return;
                     path = f;
@@ -130,7 +118,7 @@ namespace Localization
                 if (GUILayout.Button("Create Localization Manager file"))
                 {
                     string f = EditorUtility.SaveFilePanel("Create Localization Manager file", Application.dataPath,
-                        "LocalizationManager", "txt");
+                        "LocalizationManager", "loc");
                     if (string.IsNullOrEmpty(f))
                         return;
                     File.Create(f).Dispose();
@@ -155,30 +143,23 @@ namespace Localization
             if (GUILayout.Button("Save System"))
                 Save();
             LocLayout.Space();
-            if (managerSelected)
-                if (GUILayout.Button("Reset Manager Path"))
+            if (GUILayout.Button("Reset Manager Path"))
+            {
+                if (EditorUtility.DisplayDialog("Question",
+                    "You are about to reset the Localization Manager path... Are you sure?", "Yes", "No"))
                 {
-                    if (EditorUtility.DisplayDialog("Question",
-                        "You are about to reset the Localization Manager path... Are you sure?", "Yes", "No"))
-                    {
-                        PlayerPrefs.DeleteKey(LocalizationController.PrefsKey);
-                        this.Close();
-                    }
+                    PlayerPrefs.DeleteKey(LocalizationController.PrefsKey);
+                    this.Close();
                 }
+            }
 
             GUILayout.EndHorizontal();
 
             LocLayout.Space(5);
 
-            string lang = "";
-            
-                managerSelected = true;
-                lang = "Language Manager";
-            
 
             GUILayout.BeginHorizontal("Box");
-            LocLayout.Label("Selected: " + lang);
-            
+            GUILayout.FlexibleSpace();
             if (GUILayout.Button("Open Language"))
             {
                 OpenLang();
@@ -188,6 +169,7 @@ namespace Localization
             {
                 CreateLang();
             }
+
             GUILayout.EndHorizontal();
 
             #endregion
@@ -200,63 +182,70 @@ namespace Localization
 
             GUILayout.BeginHorizontal("Box");
             EditorGUIUtility.labelWidth -= 70;
-            groupSelected = EditorGUILayout.Popup("Group:", groupSelected,
-                LocalizationController.LOCALIZATION_GROUPS.ToArray(), GUILayout.MaxWidth(300), GUILayout.MinWidth(50));
-            EditorGUIUtility.labelWidth += 70;
-            if (managerSelected)
-            {
-                LocLayout.Space();
-                grpoup_Name = EditorGUILayout.TextField(grpoup_Name);
-                if (GUILayout.Button("+ Group"))
-                {
-                    if (string.IsNullOrEmpty(grpoup_Name))
-                    {
-                        LocLayout.Error("Please fill the required field! [Group Name]");
-                        return;
-                    }
+            selectAllKeys = EditorGUILayout.ToggleLeft("Show all keys", selectAllKeys);
+            if (!selectAllKeys)
+                groupSelected = EditorGUILayout.Popup("Group:", groupSelected,
+                    LocalizationController.LOCALIZATION_GROUPS.ToArray(), GUILayout.MaxWidth(300),
+                    GUILayout.MinWidth(50));
+            else
+                EditorGUILayout.LabelField("Group: BLOCKED", GUILayout.MaxWidth(300),
+                    GUILayout.MinWidth(50));
 
-                    LocalizationController.LOCALIZATION_GROUPS.Add(grpoup_Name);
-                    grpoup_Name = "";
-                    GUI.FocusControl("Set");
+            EditorGUIUtility.labelWidth += 70;
+
+            LocLayout.Space();
+            grpoup_Name = EditorGUILayout.TextField(grpoup_Name);
+            if (GUILayout.Button("+ Group"))
+            {
+                if (string.IsNullOrEmpty(grpoup_Name))
+                {
+                    LocLayout.Error("Please fill the required field! [Group Name]");
                     return;
                 }
 
-                if (GUILayout.Button("- Group") && LocalizationController.LOCALIZATION_GROUPS.Count > 1)
-                {
-                    if (EditorUtility.DisplayDialog("Question", "You are going to remove category... Are you sure?",
-                        "Yes", "No"))
-                    {
-                        if (string.IsNullOrEmpty(grpoup_Name))
-                        {
-                            LocalizationController.LOCALIZATION_GROUPS.RemoveAt(LocalizationController.LOCALIZATION_GROUPS.Count - 1);
-                            groupSelected = 0;
-                        }
-                        else
-                        {
-                            int cc = 0;
-                            bool notfound = true;
-                            foreach (string cat in LocalizationController.LOCALIZATION_GROUPS)
-                            {
-                                if (grpoup_Name == cat)
-                                {
-                                    LocalizationController.LOCALIZATION_GROUPS.RemoveAt(cc);
-                                    groupSelected = 0;
-                                    notfound = false;
-                                    break;
-                                }
+                LocalizationController.LOCALIZATION_GROUPS.Add(grpoup_Name);
+                grpoup_Name = "";
+                GUI.FocusControl("Set");
+                return;
+            }
 
-                                cc++;
+            if (GUILayout.Button("- Group") && LocalizationController.LOCALIZATION_GROUPS.Count > 1)
+            {
+                if (EditorUtility.DisplayDialog("Question", "You are going to remove category... Are you sure?",
+                    "Yes", "No"))
+                {
+                    if (string.IsNullOrEmpty(grpoup_Name))
+                    {
+                        LocalizationController.LOCALIZATION_GROUPS.RemoveAt(
+                            LocalizationController.LOCALIZATION_GROUPS.Count - 1);
+                        groupSelected = 0;
+                    }
+                    else
+                    {
+                        int cc = 0;
+                        bool notfound = true;
+                        foreach (string cat in LocalizationController.LOCALIZATION_GROUPS)
+                        {
+                            if (grpoup_Name == cat)
+                            {
+                                LocalizationController.LOCALIZATION_GROUPS.RemoveAt(cc);
+                                groupSelected = 0;
+                                notfound = false;
+                                break;
                             }
 
-                            if (notfound)
-                                LocLayout.Error("The category couldn't be found.");
-                            grpoup_Name = "";
+                            cc++;
                         }
 
-                        return;
+                        if (notfound)
+                            LocLayout.Error("The category couldn't be found.");
+                        grpoup_Name = "";
                     }
+
+                    return;
                 }
             }
+
 
             GUILayout.EndHorizontal();
 
@@ -270,8 +259,8 @@ namespace Localization
 
             GUILayout.BeginHorizontal();
             LocLayout.Label("Localization Keys & Translations");
-            if (managerSelected && GUILayout.Button("+"))
-                ElementsList.Add(new LocalizationElement() {Group = groupSelected});
+            if (GUILayout.Button("+"))
+                ElementsList.Insert(0,new LocalizationElement() {Group = groupSelected});
             GUILayout.EndHorizontal();
 
             if (ElementsList.Count == 0)
@@ -279,49 +268,38 @@ namespace Localization
             else
             {
                 scrollRect = EditorGUILayout.BeginScrollView(scrollRect);
-                
-                
-                    if (string.IsNullOrEmpty(searchField.SearchString))
-                        tempElementsList = ElementsList;
-                    else if (searchField.IsChanged)
-                    {
-                        tempElementsList = new List<LocalizationElement>();
-                        foreach (LocalizationElement locA in ElementsList)
-                        {
-                            if (locA.Key.IndexOf(searchField.SearchString,StringComparison.OrdinalIgnoreCase)>=0)
-                                tempElementsList.Add(locA);
-                        }
-                    }
-                
 
-                for (var i = 0; i < tempElementsList.Count; i++)
+
+                if (string.IsNullOrEmpty(searchField.SearchString))
+                    tempElementsList = ElementsList;
+                else if (searchField.IsChanged)
                 {
-                    LocalizationElement locEl = tempElementsList[i];
+                    tempElementsList = new List<LocalizationElement>();
+                    foreach (LocalizationElement locA in ElementsList)
+                    {
+                        if (locA.Key.IndexOf(searchField.SearchString, StringComparison.OrdinalIgnoreCase) >= 0)
+                            tempElementsList.Add(locA);
+                    }
+                }
+                foreach (var locEl in tempElementsList)
+                {
                     if (locEl.Group >= LocalizationController.LOCALIZATION_GROUPS.Count)
                     {
                         locEl.Group = 0;
                         break;
                     }
 
-                    if (LocalizationController.LOCALIZATION_GROUPS[locEl.Group] !=
+                    if (!selectAllKeys && LocalizationController.LOCALIZATION_GROUPS[locEl.Group] !=
                         LocalizationController.LOCALIZATION_GROUPS[groupSelected])
                         continue;
 
                     EditorGUIUtility.labelWidth -= 100;
                     EditorGUILayout.BeginHorizontal("Box");
-                    if (!managerSelected)
-                    {
-                        EditorGUILayout.LabelField(locEl.Key, GUILayout.Width(100));
-
-                        EditorGUILayout.LabelField("Text:", GUILayout.Width(100));
-                        locEl.Text = EditorGUILayout.TextField(locEl.Text, GUILayout.MaxWidth(300),
-                            GUILayout.MinWidth(100));
-                    }
-                    else
                     {
                         EditorGUILayout.LabelField("Key:", GUILayout.Width(45));
 
-                        locEl.Key = EditorGUILayout.TextField(locEl.Key, GUILayout.MaxWidth(100), GUILayout.MinWidth(30));
+                        locEl.Key = EditorGUILayout.TextField(locEl.Key, GUILayout.MaxWidth(150),
+                            GUILayout.MinWidth(100));
                         EditorGUILayout.LabelField("Group:", GUILayout.Width(75));
                         locEl.Group = EditorGUILayout.Popup(locEl.Group,
                             LocalizationController.LOCALIZATION_GROUPS.ToArray());
@@ -331,7 +309,6 @@ namespace Localization
                             return;
                         }
                     }
-
                     EditorGUILayout.EndHorizontal();
                     EditorGUIUtility.labelWidth += 100;
                 }
@@ -345,7 +322,5 @@ namespace Localization
 
             EditorGUI.indentLevel--;
         }
-
     }
 }
-#endif
