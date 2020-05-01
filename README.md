@@ -1,10 +1,10 @@
 # Localization Manager
 
-## How to use
+#Inspector Preview
 
-TopMenu> Tools->Localization Manager
+![Image](https://github.com/dragoff/localization-manager/raw/gh-content/Images/Inspector.png)
 
-Add component->Localization->Localization Manager
+#Settings Menu Preview
 
-## Download
-https://github.com/dragoff/localization-manager/releases
+![Image](https://github.com/dragoff/localization-manager/raw/gh-content/Images/WIndow.png)
+
